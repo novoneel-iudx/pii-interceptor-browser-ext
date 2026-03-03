@@ -1,0 +1,44 @@
+{
+  "manifest_version": 3,
+  "name": "PII Interceptor for LLM Chat",
+  "version": "0.1.0",
+  "description": "Masks detected PII in pasted chat text and supports explicit unmasking.",
+  "permissions": ["activeTab", "scripting", "storage", "clipboardWrite"],
+  "host_permissions": [
+    "https://chat.openai.com/*",
+    "https://chatgpt.com/*",
+    "https://claude.ai/*",
+    "https://gemini.google.com/*",
+    "https://www.perplexity.ai/*"
+  ],
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "action": {
+    "default_title": "Unmask Selected Tokens"
+  },
+  "commands": {
+    "unmask-selection": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+U",
+        "mac": "Command+Shift+U"
+      },
+      "description": "Unmask selected placeholder tokens"
+    }
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://chat.openai.com/*",
+        "https://chatgpt.com/*",
+        "https://claude.ai/*",
+        "https://gemini.google.com/*",
+        "https://www.perplexity.ai/*"
+      ],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "options_page": "options.html"
+}

@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>PII Interceptor Settings</title>
+    <style>
+      :root {
+        color-scheme: light;
+        font-family: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+      }
+      body {
+        margin: 24px;
+        max-width: 720px;
+      }
+      .row {
+        margin: 12px 0;
+      }
+      .muted {
+        color: #5f6368;
+      }
+      fieldset {
+        border: 1px solid #d0d7de;
+        border-radius: 8px;
+        padding: 12px;
+      }
+      button {
+        margin-top: 12px;
+        padding: 8px 12px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>PII Interceptor Settings</h1>
+    <p class="muted">Detection is always local. No network calls are used.</p>
+
+    <fieldset>
+      <legend>Enabled PII Types</legend>
+      <div class="row"><label><input type="checkbox" id="EMAIL" /> Email</label></div>
+      <div class="row"><label><input type="checkbox" id="PHONE" /> Phone</label></div>
+      <div class="row"><label><input type="checkbox" id="SSN" /> SSN</label></div>
+      <div class="row"><label><input type="checkbox" id="CREDIT_CARD" /> Credit card</label></div>
+      <div class="row"><label><input type="checkbox" id="PERSON_NAME" /> Person name (heuristic)</label></div>
+    </fieldset>
+
+    <div class="row">
+      <label for="maxPasteSize">Max paste size (chars): </label>
+      <input id="maxPasteSize" type="number" min="256" step="256" />
+    </div>
+    <div class="row">
+      <label><input type="checkbox" id="maskOnType" /> Auto-mask while typing (input/textarea)</label>
+    </div>
+
+    <button id="saveBtn" type="button">Save</button>
+    <p id="status" class="muted"></p>
+
+    <script src="./options.js"></script>
+  </body>
+</html>
