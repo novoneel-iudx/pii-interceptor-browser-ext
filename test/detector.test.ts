@@ -37,4 +37,29 @@ describe('detectPII', () => {
     expect(names.length).toBeGreaterThanOrEqual(1);
     expect(names[0].confidence).toBe('low');
   });
+
+  it('detects Indian 10-digit phone numbers', () => {
+    const text = 'Call me on 9826476738 tomorrow.';
+    const detections = detectPII(text, DEFAULT_SETTINGS);
+    expect(detections.some((d) => d.type === 'PHONE')).toBe(true);
+  });
+
+  it('detects lowercase names in "my name is ..." patterns', () => {
+    const text = 'Hello, my name is vrushabh.';
+    const detections = detectPII(text, DEFAULT_SETTINGS);
+    expect(detections.some((d) => d.type === 'PERSON_NAME')).toBe(true);
+  });
+
+  it('detects addresses in "address is ..." patterns when enabled', () => {
+    const text = 'My address is banashankari, 3rd main 7th cross gurunivasa.';
+    const settings = {
+      ...DEFAULT_SETTINGS,
+      enabledTypes: {
+        ...DEFAULT_SETTINGS.enabledTypes,
+        ADDRESS: true
+      }
+    };
+    const detections = detectPII(text, settings);
+    expect(detections.some((d) => d.type === 'ADDRESS')).toBe(true);
+  });
 });

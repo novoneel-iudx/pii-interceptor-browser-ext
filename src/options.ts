@@ -1,7 +1,16 @@
 import { DEFAULT_SETTINGS, getSettings, saveSettings } from './settings';
 import type { ExtensionSettings, PiiType } from './types';
 
-const TYPE_KEYS: PiiType[] = ['EMAIL', 'PHONE', 'SSN', 'CREDIT_CARD', 'PERSON_NAME'];
+const TYPE_KEYS: PiiType[] = [
+  'EMAIL',
+  'PHONE',
+  'SSN',
+  'CREDIT_CARD',
+  'PERSON_NAME',
+  'ORG',
+  'LOCATION',
+  'ADDRESS'
+];
 
 function setStatus(message: string): void {
   const status = document.getElementById('status');
@@ -14,18 +23,31 @@ function readSettingsFromDom(): ExtensionSettings {
   const enabledTypes = { ...DEFAULT_SETTINGS.enabledTypes };
   for (const key of TYPE_KEYS) {
     const checkbox = document.getElementById(key) as HTMLInputElement | null;
-    enabledTypes[key] = checkbox?.checked ?? DEFAULT_SETTINGS.enabledTypes[key];
+    if (checkbox) {
+      enabledTypes[key] = checkbox.checked;
+    }
   }
 
   const maxPasteInput = document.getElementById('maxPasteSize') as HTMLInputElement | null;
   const maxPasteSizeRaw = Number(maxPasteInput?.value ?? DEFAULT_SETTINGS.maxPasteSize);
+
+  const nerMinConfidenceInput = document.getElementById('nerMinConfidence') as HTMLInputElement | null;
+  const nerMinConfidenceRaw = Number(
+    nerMinConfidenceInput?.value ?? DEFAULT_SETTINGS.nerMinConfidence
+  );
 
   return {
     enabledTypes,
     maxPasteSize: Number.isFinite(maxPasteSizeRaw) && maxPasteSizeRaw >= 256
       ? maxPasteSizeRaw
       : DEFAULT_SETTINGS.maxPasteSize,
-    maskOnType: (document.getElementById('maskOnType') as HTMLInputElement | null)?.checked ?? DEFAULT_SETTINGS.maskOnType
+    maskOnType:
+      (document.getElementById('maskOnType') as HTMLInputElement | null)?.checked ??
+      DEFAULT_SETTINGS.maskOnType,
+    nerMinConfidence:
+      Number.isFinite(nerMinConfidenceRaw) && nerMinConfidenceRaw >= 0 && nerMinConfidenceRaw <= 1
+        ? nerMinConfidenceRaw
+        : DEFAULT_SETTINGS.nerMinConfidence
   };
 }
 
@@ -45,6 +67,11 @@ function writeSettingsToDom(settings: ExtensionSettings): void {
   const maskOnType = document.getElementById('maskOnType') as HTMLInputElement | null;
   if (maskOnType) {
     maskOnType.checked = settings.maskOnType;
+  }
+
+  const nerMinConfidence = document.getElementById('nerMinConfidence') as HTMLInputElement | null;
+  if (nerMinConfidence) {
+    nerMinConfidence.value = String(settings.nerMinConfidence);
   }
 }
 

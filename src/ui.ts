@@ -31,6 +31,7 @@ export function showMaskConfirmation(detections: Detection[]): Promise<Set<strin
     overlay.style.inset = '0';
     overlay.style.background = 'rgba(0, 0, 0, 0.22)';
     overlay.style.zIndex = '2147483646';
+    overlay.style.colorScheme = 'light';
 
     const panel = document.createElement('div');
     panel.style.position = 'fixed';
@@ -40,16 +41,19 @@ export function showMaskConfirmation(detections: Detection[]): Promise<Set<strin
     panel.style.maxHeight = '70vh';
     panel.style.overflow = 'auto';
     panel.style.background = '#ffffff';
+    panel.style.color = '#111827';
     panel.style.border = '1px solid #d1d5db';
     panel.style.borderRadius = '10px';
     panel.style.padding = '12px';
     panel.style.boxShadow = '0 8px 24px rgba(0, 0, 0, 0.2)';
     panel.style.fontFamily = 'system-ui, sans-serif';
+    panel.style.fontSize = '12px';
 
     const title = document.createElement('div');
     title.textContent = 'PII detected in paste. Select items to mask.';
     title.style.fontWeight = '600';
     title.style.marginBottom = '8px';
+    title.style.color = '#111827';
     panel.appendChild(title);
 
     const form = document.createElement('div');
@@ -65,10 +69,12 @@ export function showMaskConfirmation(detections: Detection[]): Promise<Set<strin
       checkbox.dataset.detectionId = detection.id;
       checkbox.checked = shouldDefaultChecked(detection);
       checkbox.style.marginRight = '8px';
+      (checkbox.style as any).accentColor = '#2563eb';
 
       const label = document.createElement('span');
       label.textContent = `${detection.type}: ${detection.text.slice(0, 80)}`;
       label.title = detection.text;
+      label.style.color = '#111827';
 
       row.appendChild(checkbox);
       row.appendChild(label);
@@ -85,10 +91,22 @@ export function showMaskConfirmation(detections: Detection[]): Promise<Set<strin
     const acceptBtn = document.createElement('button');
     acceptBtn.textContent = 'Mask selected';
     acceptBtn.type = 'button';
+    acceptBtn.style.background = '#2563eb';
+    acceptBtn.style.color = '#ffffff';
+    acceptBtn.style.border = '1px solid #2563eb';
+    acceptBtn.style.borderRadius = '8px';
+    acceptBtn.style.padding = '8px 10px';
+    acceptBtn.style.cursor = 'pointer';
 
     const cancelBtn = document.createElement('button');
     cancelBtn.textContent = 'Cancel';
     cancelBtn.type = 'button';
+    cancelBtn.style.background = '#ffffff';
+    cancelBtn.style.color = '#111827';
+    cancelBtn.style.border = '1px solid #d1d5db';
+    cancelBtn.style.borderRadius = '8px';
+    cancelBtn.style.padding = '8px 10px';
+    cancelBtn.style.cursor = 'pointer';
 
     actions.appendChild(acceptBtn);
     actions.appendChild(cancelBtn);

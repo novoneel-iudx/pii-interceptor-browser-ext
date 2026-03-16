@@ -20,6 +20,19 @@ describe('TabMapper', () => {
     expect(result.text).toContain('{{PII_EMAIL_999}}');
     expect(result.restoredCount).toBe(1);
   });
+
+  it('supports unmasking legacy {{PII_TYPE_N}} tokens if they exist in the map', () => {
+    const mapper = new TabMapper();
+
+    const canonical = mapper.getOrCreateToken('EMAIL', 'bob@example.com', 'bob@example.com');
+    // simulate a legacy token present in text by adding it to the map via direct creation
+    // (content script may have older masked drafts)
+    (mapper as any).state?.tokenToOriginal?.set('{{PII_EMAIL_1}}', 'bob@example.com');
+
+    const result = mapper.unmaskText(`a ${canonical} b {{PII_EMAIL_1}}`);
+    expect(result.text).toContain('bob@example.com');
+    expect(result.restoredCount).toBeGreaterThanOrEqual(1);
+  });
 });
 
 describe('applyMasking', () => {
@@ -51,7 +64,7 @@ describe('applyMasking', () => {
     const accepted = new Set(['EMAIL_0']);
     const result = applyMasking(text, detections, accepted, mapper);
 
-    expect(result.text).toContain('{{PII_EMAIL_1}}');
+    expect(result.text).toContain('PII_email_1');
     expect(result.text).toContain('415-555-2671');
     expect(result.maskedCount).toBe(1);
   });

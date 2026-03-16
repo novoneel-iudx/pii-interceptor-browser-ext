@@ -2,9 +2,24 @@ import type { Confidence, Detection, ExtensionSettings, PiiType } from './types'
 
 const EMAIL_REGEX = /\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi;
 const PHONE_REGEX = /(?<!\w)(?:\+?1[\s.-]?)?(?:\(?\d{3}\)?[\s.-]?)\d{3}[\s.-]?\d{4}(?!\w)/g;
+const IN_PHONE_REGEX = /(?<!\d)[6-9]\d{9}(?!\d)/g;
 const SSN_REGEX = /\b\d{3}-\d{2}-\d{4}\b/g;
 const CREDIT_CARD_REGEX = /(?<!\d)(?:\d[ -]?){13,19}(?!\d)/g;
 const NAME_REGEX = /\b([A-Z][a-z]{2,})\s+([A-Z][a-z]{2,})(?:\s+([A-Z][a-z]{2,}))?\b/g;
+const MY_NAME_IS_REGEX = /\bmy\s+name\s+is\s+([a-z][a-z'-]{1,30}(?:\s+[a-z][a-z'-]{1,30}){0,2})\b/gi;
+const ADDRESS_IS_REGEX = /\b(?:my\s+)?address\s+is\s+([^\n.]{8,140})/gi;
+
+const CANONICAL_TOKEN_REGEX = /^PII_[a-z_]+_\d+$/;
+const LEGACY_TOKEN_REGEX = /^\{\{PII_[A-Z_]+_\d+\}\}$/;
+
+function isTokenLike(value: string): boolean {
+  const v = value.trim();
+  return CANONICAL_TOKEN_REGEX.test(v) || LEGACY_TOKEN_REGEX.test(v);
+}
+
+function containsFieldKeyword(value: string): boolean {
+  return /\b(phone|number|email|address|ssn|credit|card)\b/i.test(value);
+}
 
 const NAME_STOPWORDS = new Set([
   'United', 'States', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday',
@@ -34,9 +49,57 @@ function normalize(type: PiiType, value: string): string {
       return value.replace(/\D/g, '');
     case 'PERSON_NAME':
       return value.trim().replace(/\s+/g, ' ');
+    case 'ADDRESS':
+      return value.trim().replace(/\s+/g, ' ');
     default:
       return value;
   }
+}
+
+function collectGroupMatches(
+  text: string,
+  type: PiiType,
+  regex: RegExp,
+  confidence: Confidence,
+  groupIndex: number,
+  predicate?: (value: string) => boolean
+): Detection[] {
+  const detections: Detection[] = [];
+  regex.lastIndex = 0;
+  let match: RegExpExecArray | null;
+  let index = 0;
+
+  while ((match = regex.exec(text)) !== null) {
+    const group = match[groupIndex];
+    if (!group) {
+      continue;
+    }
+
+    const full = match[0];
+    const rel = full.toLowerCase().indexOf(String(group).toLowerCase());
+    const start = match.index + Math.max(0, rel);
+    const end = start + group.length;
+
+    const value = text.slice(start, end);
+    if (isTokenLike(value)) {
+      continue;
+    }
+    if (predicate && !predicate(value)) {
+      continue;
+    }
+
+    detections.push({
+      id: makeId(type, index++),
+      type,
+      start,
+      end,
+      text: value,
+      normalized: normalize(type, value),
+      confidence
+    });
+  }
+
+  return detections;
 }
 
 function collectMatches(
@@ -53,6 +116,9 @@ function collectMatches(
 
   while ((match = regex.exec(text)) !== null) {
     const value = match[0];
+    if (isTokenLike(value)) {
+      continue;
+    }
     if (predicate && !predicate(value)) {
       continue;
     }
@@ -113,7 +179,7 @@ function isLikelyPersonName(value: string): boolean {
   return true;
 }
 
-function resolveOverlaps(detections: Detection[]): Detection[] {
+export function resolveOverlaps(detections: Detection[]): Detection[] {
   const sorted = [...detections].sort((a, b) => {
     const confidenceDiff = CONFIDENCE_SCORE[b.confidence] - CONFIDENCE_SCORE[a.confidence];
     if (confidenceDiff !== 0) {
@@ -139,6 +205,26 @@ function resolveOverlaps(detections: Detection[]): Detection[] {
   return accepted.sort((a, b) => a.start - b.start);
 }
 
+export function detectPIIRegex(text: string): Detection[] {
+  const defaultSettings: ExtensionSettings = {
+    enabledTypes: {
+      EMAIL: true,
+      PHONE: true,
+      SSN: true,
+      CREDIT_CARD: true,
+      PERSON_NAME: true,
+      ORG: false,
+      LOCATION: false,
+      ADDRESS: false
+    },
+    maxPasteSize: 50000,
+    maskOnType: false,
+    nerMinConfidence: 0.85
+  };
+
+  return detectPII(text, defaultSettings);
+}
+
 export function detectPII(text: string, settings: ExtensionSettings): Detection[] {
   const detections: Detection[] = [];
 
@@ -148,6 +234,7 @@ export function detectPII(text: string, settings: ExtensionSettings): Detection[
 
   if (settings.enabledTypes.PHONE) {
     detections.push(...collectMatches(text, 'PHONE', PHONE_REGEX, 'high'));
+    detections.push(...collectMatches(text, 'PHONE', IN_PHONE_REGEX, 'high'));
   }
 
   if (settings.enabledTypes.SSN) {
@@ -160,6 +247,22 @@ export function detectPII(text: string, settings: ExtensionSettings): Detection[
 
   if (settings.enabledTypes.PERSON_NAME) {
     detections.push(...collectMatches(text, 'PERSON_NAME', NAME_REGEX, 'low', isLikelyPersonName));
+    detections.push(
+      ...collectGroupMatches(text, 'PERSON_NAME', MY_NAME_IS_REGEX, 'medium', 1, (value) => {
+        if (containsFieldKeyword(value)) return false;
+        if (/[\d.,]/.test(value)) return false;
+        return true;
+      })
+    );
+  }
+
+  if (settings.enabledTypes.ADDRESS) {
+    detections.push(
+      ...collectGroupMatches(text, 'ADDRESS', ADDRESS_IS_REGEX, 'medium', 1, (value) => {
+        if (isTokenLike(value)) return false;
+        return true;
+      })
+    );
   }
 
   return resolveOverlaps(detections);
