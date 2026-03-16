@@ -13,5 +13,8 @@
     "esbuild": "^0.27.3",
     "typescript": "^5.6.3",
     "vitest": "^4.0.18"
+  },
+  "dependencies": {
+    "@xenova/transformers": "^2.17.2"
   }
 }

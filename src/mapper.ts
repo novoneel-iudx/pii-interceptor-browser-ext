@@ -6,8 +6,22 @@ function createCounters(): Record<PiiType, number> {
     PHONE: 0,
     SSN: 0,
     CREDIT_CARD: 0,
-    PERSON_NAME: 0
+    PERSON_NAME: 0,
+    ORG: 0,
+    LOCATION: 0,
+    ADDRESS: 0
   };
+}
+
+function typeTag(type: PiiType): string {
+  switch (type) {
+    case 'CREDIT_CARD':
+      return 'credit_card';
+    case 'PERSON_NAME':
+      return 'name';
+    default:
+      return type.toLowerCase();
+  }
 }
 
 function simpleHash(input: string): string {
@@ -26,6 +40,16 @@ export class TabMapper {
     countersByType: createCounters()
   };
 
+  getExistingToken(type: PiiType, normalized: string): string | undefined {
+    const key = `${type}:${simpleHash(normalized)}`;
+    return this.state.originalToToken.get(key);
+  }
+
+  peekNextToken(type: PiiType): string {
+    const next = this.state.countersByType[type] + 1;
+    return `PII_${typeTag(type)}_${next}`;
+  }
+
   getOrCreateToken(type: PiiType, original: string, normalized: string): string {
     const key = `${type}:${simpleHash(normalized)}`;
     const existingToken = this.state.originalToToken.get(key);
@@ -34,7 +58,7 @@ export class TabMapper {
     }
 
     this.state.countersByType[type] += 1;
-    const token = `{{PII_${type}_${this.state.countersByType[type]}}}`;
+    const token = `PII_${typeTag(type)}_${this.state.countersByType[type]}`;
     this.state.originalToToken.set(key, token);
     this.state.tokenToOriginal.set(token, original);
     return token;
@@ -46,18 +70,52 @@ export class TabMapper {
 
   unmaskText(text: string): { text: string; restoredCount: number } {
     let restoredCount = 0;
-    const replaced = text.replace(/\{\{PII_[A-Z_]+_\d+\}\}/g, (token) => {
-      const original = this.restoreToken(token);
-      if (!original) {
-        return token;
-      }
 
-      restoredCount += 1;
-      return original;
-    });
+    const replaced = text.replace(
+      /(\{\{PII_[A-Z_]+_\d+\}\})|(PII_[a-z_]+_\d+)/g,
+      (token) => {
+        const original = this.restoreToken(token);
+        if (!original) {
+          return token;
+        }
+
+        restoredCount += 1;
+        return original;
+      }
+    );
 
     return { text: replaced, restoredCount };
   }
+
+  getTokenMapJson(): Record<string, string> {
+    return Object.fromEntries(this.state.tokenToOriginal.entries());
+  }
+
+  getStats(): { totalTokens: number; countsByTypeTag: Record<string, number> } {
+    const countsByTypeTag: Record<string, number> = {}
+
+    for (const token of this.state.tokenToOriginal.keys()) {
+      const m = /^PII_([a-z_]+)_\d+$/.exec(token)
+      const tag = m?.[1] ?? 'unknown'
+      countsByTypeTag[tag] = (countsByTypeTag[tag] ?? 0) + 1
+    }
+
+    return { totalTokens: this.state.tokenToOriginal.size, countsByTypeTag }
+  }
+
+  clearSession(): void {
+    this.state.tokenToOriginal.clear()
+    this.state.originalToToken.clear()
+    this.state.countersByType = createCounters()
+  }
+}
+
+export function isCanonicalToken(token: string): boolean {
+  return /^PII_[a-z_]+_\d+$/.test(token);
+}
+
+export function isLegacyToken(token: string): boolean {
+  return /^\{\{PII_[A-Z_]+_\d+\}\}$/.test(token);
 }
 
 export function applyMasking(

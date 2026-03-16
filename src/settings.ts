@@ -1,6 +1,15 @@
 import type { ExtensionSettings, PiiType } from './types';
 
-const PII_TYPES: PiiType[] = ['EMAIL', 'PHONE', 'SSN', 'CREDIT_CARD', 'PERSON_NAME'];
+const PII_TYPES: PiiType[] = [
+  'EMAIL',
+  'PHONE',
+  'SSN',
+  'CREDIT_CARD',
+  'PERSON_NAME',
+  'ORG',
+  'LOCATION',
+  'ADDRESS'
+];
 
 export const DEFAULT_SETTINGS: ExtensionSettings = {
   enabledTypes: {
@@ -8,10 +17,14 @@ export const DEFAULT_SETTINGS: ExtensionSettings = {
     PHONE: true,
     SSN: true,
     CREDIT_CARD: true,
-    PERSON_NAME: true
+    PERSON_NAME: true,
+    ORG: true,
+    LOCATION: true,
+    ADDRESS: true
   },
   maxPasteSize: 50000,
-  maskOnType: false
+  maskOnType: false,
+  nerMinConfidence: 0.6
 };
 
 export async function getSettings(): Promise<ExtensionSettings> {
@@ -30,10 +43,17 @@ export async function getSettings(): Promise<ExtensionSettings> {
   }
 
   const maxPasteSize = Number(raw.maxPasteSize);
+
+  const nerMinConfidenceRaw = Number((raw as any).nerMinConfidence);
+  const nerMinConfidence =
+    Number.isFinite(nerMinConfidenceRaw) && nerMinConfidenceRaw >= 0 && nerMinConfidenceRaw <= 1
+      ? nerMinConfidenceRaw
+      : DEFAULT_SETTINGS.nerMinConfidence;
   return {
     enabledTypes,
     maxPasteSize: Number.isFinite(maxPasteSize) && maxPasteSize >= 256 ? maxPasteSize : DEFAULT_SETTINGS.maxPasteSize,
-    maskOnType: typeof raw.maskOnType === 'boolean' ? raw.maskOnType : DEFAULT_SETTINGS.maskOnType
+    maskOnType: typeof raw.maskOnType === 'boolean' ? raw.maskOnType : DEFAULT_SETTINGS.maskOnType,
+    nerMinConfidence
   };
 }
 
